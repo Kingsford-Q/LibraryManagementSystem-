@@ -5,22 +5,14 @@
         "availability": "Available",
         "title": "Moby Dick",
         "username": "nk",
-        "status": "Accepted"
-    },
-    {
-        "author": "Jane Austen",
-        "genre": "Romance",
-        "availability": "Available",
-        "title": "Pride and Oath",
-        "username": "nk",
         "status": "Rejected"
     },
     {
-        "author": "Herman Melville",
-        "genre": "Adventure",
+        "author": "Shake Spear",
+        "genre": "Magical",
         "availability": "Available",
-        "title": "Moby Dick",
+        "title": "Sea Monsters",
         "username": "nk",
-        "status": "pending"
+        "status": "Accepted"
     }
 ]
