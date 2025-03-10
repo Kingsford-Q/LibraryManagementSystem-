@@ -1,0 +1,284 @@
+[
+    {
+        "author": "Herman Melville",
+        "genre": "Adventure",
+        "available": true,
+        "availability": "Available",
+        "title": "Moby Dick"
+    },
+    {
+        "author": "Jane Austen",
+        "genre": "Romance",
+        "available": true,
+        "title": "Pride and Oath"
+    },
+    {
+        "author": "J.R.R. Tolkien",
+        "genre": "Fantasy",
+        "available": true,
+        "title": "The Hobbit"
+    },
+    {
+        "author": "Fyodor Dostoevsky",
+        "genre": "Psychological",
+        "available": true,
+        "title": "Crime and Punishment"
+    },
+    {
+        "author": "Homer",
+        "genre": "Epic",
+        "available": true,
+        "title": "The Odyssey"
+    },
+    {
+        "author": "Charlotte Bronte",
+        "genre": "Romance",
+        "available": true,
+        "title": "Jane Eyre"
+    },
+    {
+        "author": "Aldous Huxley",
+        "genre": "Dystopian",
+        "available": true,
+        "availability": "Available",
+        "title": "Brave New World"
+    },
+    {
+        "author": "Emily Bronte",
+        "genre": "Gothic",
+        "available": true,
+        "title": "Wuthering Heights"
+    },
+    {
+        "author": "Dante Alighieri",
+        "genre": "Epic",
+        "available": true,
+        "title": "The Divine Comedy"
+    },
+    {
+        "author": "Bram Stoker",
+        "genre": "Horror",
+        "available": true,
+        "availability": "Available",
+        "title": "Dracula"
+    },
+    {
+        "author": "Victor Hugo",
+        "genre": "Historical",
+        "available": true,
+        "availability": "Available",
+        "title": "Les"
+    },
+    {
+        "author": "Leo Tolstoy",
+        "genre": "Romance",
+        "available": true,
+        "title": "Anna Karenina"
+    },
+    {
+        "author": "Fyodor Dostoevsky",
+        "genre": "Philosophical",
+        "available": true,
+        "title": "The Brothers Karamazov"
+    },
+    {
+        "author": "Miguel de Cervantes",
+        "genre": "Adventure",
+        "available": true,
+        "title": "Don Quixote"
+    },
+    {
+        "author": "James Joyce",
+        "genre": "Modernist",
+        "available": true,
+        "title": "Ulysses"
+    },
+    {
+        "author": "Homer",
+        "genre": "Epic",
+        "available": true,
+        "title": "The Iliad"
+    },
+    {
+        "author": "Ray Bradbury",
+        "genre": "Dystopian",
+        "available": true,
+        "availability": "Available",
+        "title": "Fahrenheit 451"
+    },
+    {
+        "author": "Mary Shelley",
+        "genre": "Horror",
+        "available": true,
+        "title": "Frankenstein"
+    },
+    {
+        "author": "Charles Dickens",
+        "genre": "Historical",
+        "available": true,
+        "title": "A Tale of Two Cities"
+    },
+    {
+        "author": "William Shakespeare",
+        "genre": "Tragedy",
+        "available": true,
+        "title": "Macbeth"
+    },
+    {
+        "author": "Nathaniel Hawthorne",
+        "genre": "Historical",
+        "available": true,
+        "title": "The Scarlet Letter"
+    },
+    {
+        "author": "Charles Dickens",
+        "genre": "Fiction",
+        "available": true,
+        "title": "Great Expectations"
+    },
+    {
+        "author": "Joseph Conrad",
+        "genre": "Psychological",
+        "available": true,
+        "title": "Heart of Darkness"
+    },
+    {
+        "author": "Ernest Hemingway",
+        "genre": "Adventure",
+        "available": true,
+        "title": "The Old Man and the Sea"
+    },
+    {
+        "author": "Kurt Vonnegut",
+        "genre": "Science Fiction",
+        "available": true,
+        "title": "Slaughterhouse-Five"
+    },
+    {
+        "author": "Vladimir Nabokov",
+        "genre": "Psychological",
+        "available": true,
+        "title": "Lolita"
+    },
+    {
+        "author": "Joseph Heller",
+        "genre": "Satire",
+        "available": true,
+        "title": "Catch-22"
+    },
+    {
+        "author": "Toni Morrison",
+        "genre": "Historical",
+        "available": true,
+        "title": "Beloved"
+    },
+    {
+        "author": "Gabriel Garcia Marquez",
+        "genre": "Magical Realism",
+        "available": true,
+        "title": "One Hundred Years of Solitude"
+    },
+    {
+        "author": "Franz Kafka",
+        "genre": "Absurdist",
+        "available": true,
+        "title": "The Metamorphosis"
+    },
+    {
+        "author": "Albert Camus",
+        "genre": "Philosophical",
+        "available": true,
+        "title": "The Stranger"
+    },
+    {
+        "author": "Oscar Wilde",
+        "genre": "Gothic",
+        "available": true,
+        "title": "The Picture of Dorian Gray"
+    },
+    {
+        "author": "Ralph Ellison",
+        "genre": "Social",
+        "available": true,
+        "title": "Invisible Man"
+    },
+    {
+        "author": "Cormac McCarthy",
+        "genre": "Post-Apocalyptic",
+        "available": true,
+        "title": "The Road"
+    },
+    {
+        "author": "William Faulkner",
+        "genre": "Modernist",
+        "available": true,
+        "title": "The Sound and the Fury"
+    },
+    {
+        "author": "Margaret Mitchell",
+        "genre": "Historical",
+        "available": true,
+        "title": "Gone with the Wind"
+    },
+    {
+        "author": "Frank Herbert",
+        "genre": "Science Fiction",
+        "available": true,
+        "title": "Dune"
+    },
+    {
+        "author": "Ernest Hemingway",
+        "genre": "Fiction",
+        "available": true,
+        "title": "The Sun Also Rises"
+    },
+    {
+        "author": "Anthony Burgess",
+        "genre": "Dystopian",
+        "available": true,
+        "title": "A Clockwork Orange"
+    },
+    {
+        "author": "Daphne du Maurier",
+        "genre": "Gothic",
+        "available": true,
+        "title": "Rebecca"
+    },
+    {
+        "author": "John Steinbeck",
+        "genre": "Historical",
+        "available": true,
+        "title": "The Grapes of Wrath"
+    },
+    {
+        "author": "John Steinbeck",
+        "genre": "Fiction",
+        "available": true,
+        "title": "East of Eden"
+    },
+    {
+        "author": "Paulo Coelho",
+        "genre": "Philosophical",
+        "available": true,
+        "title": "The Alchemist"
+    },
+    {
+        "author": "Alexandre Dumas",
+        "genre": "Adventure",
+        "available": true,
+        "title": "The Count of Monte Cristo"
+    },
+    {
+        "author": "Peter Collins",
+        "genre": "Education",
+        "available": true,
+        "availability": "Available",
+        "title": "School Hard"
+    },
+    {
+        "author": "Shake Spear",
+        "genre": "Magical",
+        "available": true,
+        "title": "Sea Monsters"
+    }
+]
