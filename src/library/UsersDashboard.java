@@ -277,7 +277,7 @@ private void verifyAndChangePassword(String username, String oldPassword, String
 
         String[] columnNames = { "Title", "Author", "Genre", "Availability", "Actions" };
 
-        List<Document> books = BookDAO.getAllBooks();
+        List<Document> books = BookDAO.getAllUserBooks();
         Object[][] bookData = new Object[books.size()][5];
 
         for (int i = 0; i < books.size(); i++) {

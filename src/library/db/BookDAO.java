@@ -38,6 +38,30 @@ public class BookDAO {
 
         return booksList;
     }
+
+    public static List<Document> getAllUserBooks() {
+        List<Document> booksList = new ArrayList<>();
+    
+        try (MongoCursor<Document> cursor = booksCollection.find().iterator()) {
+            while (cursor.hasNext()) {
+                Document book = cursor.next();
+    
+                // ✅ Check if the book exists in borrowed_books
+                Document borrowedBook = borrowedBooksCollection.find(eq("title", book.getString("title"))).first();
+                
+                // ✅ If the book is borrowed, skip it
+                if (borrowedBook != null) continue;
+    
+                // ✅ Otherwise, mark as "Available"
+                book.append("availability", "Available");
+    
+                booksList.add(book);
+            }
+        }
+    
+        return booksList;
+    }
+    
     
     
 
