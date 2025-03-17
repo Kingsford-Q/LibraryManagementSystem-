@@ -34,6 +34,10 @@ public class AdminDashboard extends JFrame {
      // Main content panel
 
     public AdminDashboard() {
+
+        ImageIcon windowIcon = new ImageIcon(getClass().getResource("/library/images/logo.png"));
+        setIconImage(windowIcon.getImage());
+        
         setTitle("Admin Dashboard - Library Management System");
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

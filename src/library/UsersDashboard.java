@@ -40,6 +40,10 @@ public class UsersDashboard extends JFrame {
     private JPanel content;
 
     public UsersDashboard() {
+
+        ImageIcon windowIcon = new ImageIcon(getClass().getResource("/library/images/logo.png"));
+        setIconImage(windowIcon.getImage());
+        
         setTitle("Users Dashboard - Library Management System");
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
