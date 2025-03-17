@@ -2,14 +2,8 @@ package library;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.File;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-
-import org.mindrot.jbcrypt.BCrypt;
+import org.bson.Document;
+import library.db.UserDAO;
 
 public class LoginWindow extends JFrame {
     private JTextField usernameField;
@@ -118,36 +112,7 @@ public class LoginWindow extends JFrame {
         add(backgroundPanel, BorderLayout.CENTER);
 
         // Handle Login
-        loginButton.addActionListener(e -> {
-            String username = usernameField.getText().trim();
-            String password = new String(passwordField.getPassword()).trim();
-
-            User loggedInUser = authenticateUser(username, password);
-
-            if (loggedInUser != null) {
-                // Store the username for later use
-                SessionManager.setLoggedInUser(loggedInUser.getUsername());
-            
-                dispose(); // Close login window
-            
-                if (loggedInUser.isAdmin()) {
-                    new AdminDashboard(); // Open Admin Dashboard
-                } else {
-                    new UsersDashboard(); // Open User Dashboard
-                }
-            } else {
-                messageLabel.setText("❌ Invalid username or password!");
-                messageLabel.setForeground(Color.RED);
-                
-                // Ensure no new login window is created
-                revalidate();
-                repaint();
-            }
-            
-        });
-
-        
-
+        loginButton.addActionListener(e -> authenticateUser());
 
         setVisible(true);
     }
@@ -186,52 +151,31 @@ public class LoginWindow extends JFrame {
 }
 
 
-    private static User authenticateUser(String username, String password) {
-        String adminFilePath = "src/library/users/admins.json";
-        String userFilePath = "src/library/users/users.json"; // Path for regular users
+    private void authenticateUser() {
+        String username = usernameField.getText().trim();
+        String password = new String(passwordField.getPassword()).trim();
 
-        // Check in admins.json
-        User user = checkUserInFile(adminFilePath, username, password, true);
-        if (user != null) return user;
+        Document userDoc = UserDAO.getUserByUsername(username);
 
-        // Check in users.json
-        return checkUserInFile(userFilePath, username, password, false);
-    }
+        if (userDoc != null) {
+            String storedHash = userDoc.getString("password"); // Hashed password
+            boolean isAdmin = userDoc.getBoolean("isAdmin", false);
 
-    // Helper method to check in a given JSON file
-    private static User checkUserInFile(String filePath, String username, String password, boolean isAdmin) {
-        try {
-            File file = new File(filePath);
-            if (!file.exists()) {
-                System.out.println("Error: " + filePath + " not found at " + file.getAbsolutePath());
-                return null;
-            }
+            if (UserDAO.verifyPassword(password, storedHash)) {
+                SessionManager.setLoggedInUser(username);
+                dispose(); // Close login window
 
-            String content = new String(Files.readAllBytes(Paths.get(filePath))); // Read JSON file
-            JSONArray usersArray = new JSONArray(content); // Convert to JSON array
-
-            for (int i = 0; i < usersArray.length(); i++) {
-                JSONObject userObject = usersArray.getJSONObject(i);
-                String storedUsername = userObject.getString("username");
-                String storedHashedPassword = userObject.getString("password"); // Hashed with BCrypt
-
-                boolean userIsAdmin = userObject.optBoolean("isAdmin", isAdmin);
-
-                if (storedUsername.equals(username) && verifyPassword(password, storedHashedPassword)) {
-                    return new User(username, userIsAdmin);
+                if (isAdmin) {
+                    new AdminDashboard();
+                } else {
+                    new UsersDashboard();
                 }
+            } else {
+                messageLabel.setText("❌ Invalid username or password!");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } else {
+            messageLabel.setText("❌ User not found!");
         }
-        return null;
     }
-
-    // ✅ Use BCrypt for secure password verification
-    private static boolean verifyPassword(String inputPassword, String storedHashedPassword) {
-        return BCrypt.checkpw(inputPassword, storedHashedPassword);
-    }
-
-    
 }
 

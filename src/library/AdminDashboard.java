@@ -5,6 +5,12 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import org.mindrot.jbcrypt.BCrypt;
+
+import library.db.BookDAO;
+import library.db.UserDAO;
+import library.db.RequestDAO;
+import library.db.BorrowedBooksDAO;
+
 import java.awt.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -15,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
-
+import org.bson.Document;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.awt.event.ActionListener;
@@ -44,13 +50,13 @@ public class AdminDashboard extends JFrame {
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(0, 10, 20, 10);
+        gbc.insets = new Insets(0, 10, 28, 10);
         gbc.gridx = 0;
         gbc.weightx = 1;
 
         String[] menuItems = {
             "View Books", "Add Book",
-            "Accept Borrow Requests", "Accept Return Requests","Add User", "Add Admin", "Delete Admin",
+            "Accept Borrow Requests","Add User", "Add Admin", "Delete Admin",
             "Change Password", "Borrowed Books"
         };
 
@@ -211,17 +217,17 @@ public class AdminDashboard extends JFrame {
         addButton.addActionListener(e -> {
             String username = usernameField.getText().trim();
             String password = new String(passwordField.getPassword());
-        
+    
             if (username.isEmpty() || password.isEmpty()) {
                 JOptionPane.showMessageDialog(null, "All fields must be filled!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-        
-            String hashedPassword = hashPassword(password);
-            saveAdminToJson(username, hashedPassword);
+            UserDAO.addAdmin(username, password);
 
             usernameField.setText("");
             passwordField.setText("");
+
+            JOptionPane.showMessageDialog(null, "Admin added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
 
         });
         
@@ -246,51 +252,6 @@ public class AdminDashboard extends JFrame {
         content.repaint();
     }
     
-    private String hashPassword(String password) {
-        return BCrypt.hashpw(password, BCrypt.gensalt(12));
-    }
-    
-    private void saveAdminToJson(String username, String hashedPassword) {
-        try {
-            String basePath = Paths.get("").toAbsolutePath().toString();
-            String filePath = Paths.get(basePath, "src", "library", "users", "admins.json").toString();
-        
-            File file = new File(filePath);
-            File parentDir = file.getParentFile();
-        
-            if (parentDir != null && !parentDir.exists()) {
-                parentDir.mkdirs();
-            }
-        
-            JSONArray adminArray;
-            if (file.exists() && file.length() > 0) {
-                String jsonContent = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-                adminArray = new JSONArray(jsonContent);
-            } else {
-                adminArray = new JSONArray();
-            }
-        
-            for (int i = 0; i < adminArray.length(); i++) {
-                JSONObject admin = adminArray.getJSONObject(i);
-                if (admin.getString("username").equals(username)) {
-                    JOptionPane.showMessageDialog(null, "Username already exists!");
-                    return;
-                }
-            }
-        
-            JSONObject newAdmin = new JSONObject();
-            newAdmin.put("username", username);
-            newAdmin.put("password", hashedPassword);
-            adminArray.put(newAdmin);
-        
-            Files.write(file.toPath(), adminArray.toString(4).getBytes(StandardCharsets.UTF_8));
-        
-            JOptionPane.showMessageDialog(null, "Admin added successfully!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(null, "Error saving admin: " + e.getMessage());
-        }
-    }
 
     private void addUser() {
         content.removeAll();
@@ -338,17 +299,17 @@ public class AdminDashboard extends JFrame {
         addButton.addActionListener(e -> {
             String username = usernameField.getText().trim();
             String password = new String(passwordField.getPassword());
-        
+    
             if (username.isEmpty() || password.isEmpty()) {
                 JOptionPane.showMessageDialog(null, "All fields must be filled!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-        
-            String hashedPassword = hashPassword(password);
-            saveUserToJson(username, hashedPassword);
+            UserDAO.addUser(username, password);
 
             usernameField.setText("");
             passwordField.setText("");
+
+            JOptionPane.showMessageDialog(null, "User added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
 
         });
         
@@ -373,49 +334,6 @@ public class AdminDashboard extends JFrame {
         content.repaint();
     }
     
-    private void saveUserToJson(String username, String hashedPassword) {
-        try {
-            String basePath = Paths.get("").toAbsolutePath().toString();
-            String filePath = Paths.get(basePath, "src", "library", "users", "users.json").toString();
-        
-            File file = new File(filePath);
-            File parentDir = file.getParentFile();
-        
-            if (parentDir != null && !parentDir.exists()) {
-                parentDir.mkdirs();
-            }
-        
-            JSONArray adminArray;
-            if (file.exists() && file.length() > 0) {
-                String jsonContent = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-                adminArray = new JSONArray(jsonContent);
-            } else {
-                adminArray = new JSONArray();
-            }
-        
-            for (int i = 0; i < adminArray.length(); i++) {
-                JSONObject admin = adminArray.getJSONObject(i);
-                if (admin.getString("username").equals(username)) {
-                    JOptionPane.showMessageDialog(null, "Username already exists!");
-                    return;
-                }
-            }
-        
-            JSONObject newAdmin = new JSONObject();
-            newAdmin.put("username", username);
-            newAdmin.put("password", hashedPassword);
-            adminArray.put(newAdmin);
-        
-            Files.write(file.toPath(), adminArray.toString(4).getBytes(StandardCharsets.UTF_8));
-        
-            JOptionPane.showMessageDialog(null, "User added successfully!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(null, "Error saving user: " + e.getMessage());
-        }
-    }
-    
-    
 
     private ImageIcon loadImage(String path, int width, int height) {
         String newPath = "src/library/" + path; // Adjusted path
@@ -432,68 +350,80 @@ public class AdminDashboard extends JFrame {
 
     // Display Books Panel
     private void displayBooksPanel() {
-        content.removeAll();
-        content.setLayout(new BorderLayout());
+    content.removeAll();
+    content.setLayout(new BorderLayout());
 
-        // Search Panel
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        searchPanel.setBackground(new Color(245, 245, 245));
-        searchPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    // Search Panel
+    JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+    searchPanel.setBackground(new Color(245, 245, 245));
+    searchPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        JTextField searchField = new JTextField(20);
-        searchField.setFont(new Font("Arial", Font.PLAIN, 16));
-        searchField.setPreferredSize(new Dimension(300, 40));
-        searchField.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(150, 150, 150), 1),
-            BorderFactory.createEmptyBorder(8, 10, 8, 10)
-        ));
+    JTextField searchField = new JTextField(20);
+    searchField.setFont(new Font("Arial", Font.PLAIN, 16));
+    searchField.setPreferredSize(new Dimension(300, 40));
+    searchField.setBorder(BorderFactory.createCompoundBorder(
+        BorderFactory.createLineBorder(new Color(150, 150, 150), 1),
+        BorderFactory.createEmptyBorder(8, 10, 8, 10)
+    ));
 
-        JButton searchButton = new JButton("Search");
-        searchButton.setFont(new Font("Arial", Font.BOLD, 15));
-        searchButton.setForeground(Color.WHITE);
-        searchButton.setBackground(new Color(50, 150, 50));
-        searchButton.setBorder(BorderFactory.createEmptyBorder(12, 25, 12, 25));
-        searchButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        searchButton.setFocusPainted(false);
+    JButton searchButton = new JButton("Search");
+    searchButton.setFont(new Font("Arial", Font.BOLD, 15));
+    searchButton.setForeground(Color.WHITE);
+    searchButton.setBackground(new Color(50, 150, 50));
+    searchButton.setBorder(BorderFactory.createEmptyBorder(12, 25, 12, 25));
+    searchButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    searchButton.setFocusPainted(false);
 
-        searchPanel.add(searchField);
-        searchPanel.add(searchButton);
+    searchPanel.add(searchField);
+    searchPanel.add(searchButton);
 
-        content.add(searchPanel, BorderLayout.NORTH);
+    content.add(searchPanel, BorderLayout.NORTH);
 
-        String[] columnNames = { "Title", "Author", "Genre", "Availability", "Actions" };
-        Object[][] bookData = loadBooksFromLocalStorage();
+    // ✅ Load Books from MongoDB
+    String[] columnNames = { "Title", "Author", "Genre", "Availability", "Actions" };
+    List<Document> books = BookDAO.getAllBooks(); // Fetch from MongoDB
 
-        DefaultTableModel model = new DefaultTableModel(bookData, columnNames) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return column == 4; // Only the Actions column is editable
-            }
-        };
+    Object[][] bookData = new Object[books.size()][5];
 
-        JTable bookTable = new JTable(model);
-        bookTable.setRowHeight(40); // Set consistent row height
-        bookTable.setFont(new Font("Arial", Font.PLAIN, 14)); // Set font size
-        bookTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14)); // Set header font size
-        bookTable.getTableHeader().setBackground(new Color(200, 200, 200)); // Set header background color
-        bookTable.getTableHeader().setForeground(Color.BLACK); // Set header text color
-        bookTable.setGridColor(new Color(220, 220, 220)); // Set grid color
-
-        bookTable.getColumn("Actions").setCellRenderer(new ButtonRenderer());
-        bookTable.getColumn("Actions").setCellEditor(new ButtonEditor(new JCheckBox(), bookTable));
-
-        JScrollPane scrollPane = new JScrollPane(bookTable);
-
-        content.add(scrollPane, BorderLayout.CENTER);
-        content.revalidate();
-        content.repaint();
-
-        // Search functionality
-        searchButton.addActionListener(e -> {
-            String query = searchField.getText().trim().toLowerCase();
-            filterTable(bookTable, query);
-        });
+    for (int i = 0; i < books.size(); i++) {
+        Document book = books.get(i);
+        bookData[i][0] = book.getString("title");
+        bookData[i][1] = book.getString("author");
+        bookData[i][2] = book.getString("genre");
+        bookData[i][3] = book.getBoolean("available") ? "Available" : "Not Available";
+        bookData[i][4] = "Edit | Delete"; // Placeholder for buttons
     }
+
+    DefaultTableModel model = new DefaultTableModel(bookData, columnNames) {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return column == 4; // Only the Actions column is editable
+        }
+    };
+
+    JTable bookTable = new JTable(model);
+    bookTable.setRowHeight(40);
+    bookTable.setFont(new Font("Arial", Font.PLAIN, 14));
+    bookTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
+    bookTable.getTableHeader().setBackground(new Color(200, 200, 200));
+    bookTable.getTableHeader().setForeground(Color.BLACK);
+    bookTable.setGridColor(new Color(220, 220, 220));
+
+    bookTable.getColumn("Actions").setCellRenderer(new ButtonRenderer());
+    bookTable.getColumn("Actions").setCellEditor(new ButtonEditor(new JCheckBox(), bookTable));
+
+    JScrollPane scrollPane = new JScrollPane(bookTable);
+    content.add(scrollPane, BorderLayout.CENTER);
+    content.revalidate();
+    content.repaint();
+
+    // Search functionality
+    searchButton.addActionListener(e -> {
+        String query = searchField.getText().trim().toLowerCase();
+        filterTable(bookTable, query);
+    });
+}
+
 
     // Method to filter the table based on the search query
     private void filterTable(JTable table, String query) {
@@ -541,20 +471,21 @@ public class AdminDashboard extends JFrame {
             super(checkBox);
             this.bookTable = bookTable;
             panel.setLayout(new FlowLayout(FlowLayout.CENTER));
-            editButton.setPreferredSize(new Dimension(100, 40)); // Set preferred size
-            editButton.setFont(new Font("Arial", Font.PLAIN, 14)); // Set font size
-            deleteButton.setPreferredSize(new Dimension(100, 40)); // Set preferred size
-            deleteButton.setFont(new Font("Arial", Font.PLAIN, 14)); // Set font size
+    
+            editButton.setPreferredSize(new Dimension(100, 40));
+            deleteButton.setPreferredSize(new Dimension(100, 40));
+            editButton.setFont(new Font("Arial", Font.PLAIN, 14));
+            deleteButton.setFont(new Font("Arial", Font.PLAIN, 14));
             panel.add(editButton);
             panel.add(deleteButton);
     
             editButton.addActionListener(e -> editBook(bookTable, bookTable.getSelectedRow()));
             deleteButton.addActionListener(e -> deleteBook(bookTable, bookTable.getSelectedRow()));
+
         }
     
         @Override
         public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-            table.setRowHeight(row, Math.max(editButton.getPreferredSize().height, deleteButton.getPreferredSize().height));
             return panel;
         }
     
@@ -566,206 +497,100 @@ public class AdminDashboard extends JFrame {
     
     // Method to edit a book
     private void editBook(JTable bookTable, int row) {
-        String title = (String) bookTable.getValueAt(row, 0);
+        if (row < 0) return;
+    
+        String oldTitle = (String) bookTable.getValueAt(row, 0);
         String author = (String) bookTable.getValueAt(row, 1);
         String genre = (String) bookTable.getValueAt(row, 2);
         boolean available = bookTable.getValueAt(row, 3).equals("Available");
-
+    
         JFrame editFrame = new JFrame("Edit Book");
         editFrame.setSize(400, 400);
         editFrame.setLayout(new BorderLayout());
-
+    
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(245, 245, 245));
         panel.setBorder(BorderFactory.createEmptyBorder(40, 60, 40, 60));
-
+    
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = GridBagConstraints.RELATIVE;
         gbc.anchor = GridBagConstraints.WEST;
         gbc.insets = new Insets(15, 10, 5, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-
+    
         JLabel heading = new JLabel("Edit Book", SwingConstants.CENTER);
         heading.setFont(new Font("Arial", Font.BOLD, 22));
         heading.setForeground(new Color(50, 50, 50));
-
+    
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         gbc.insets = new Insets(0, 0, 10, 0);
         panel.add(heading, gbc);
-
+    
         gbc.anchor = GridBagConstraints.WEST;
-
-        JTextField titleField = createRoundedTextField();
-        titleField.setText(title);
-        JTextField authorField = createRoundedTextField();
+    
+        JTextField titleField = new JTextField(20);
+        titleField.setText(oldTitle);
+        JTextField authorField = new JTextField(20);
         authorField.setText(author);
-        JTextField genreField = createRoundedTextField();
+        JTextField genreField = new JTextField(20);
         genreField.setText(genre);
-
+    
         JCheckBox availableCheckBox = new JCheckBox("Available");
-        availableCheckBox.setBackground(new Color(245, 245, 245));
-        availableCheckBox.setFont(new Font("Arial", Font.PLAIN, 14));
         availableCheckBox.setSelected(available);
-
-        JButton saveButton = createStyledButton("Save Changes", new Color(50, 150, 50));
-
+    
+        JButton saveButton = new JButton("Save Changes");
+    
         saveButton.addActionListener(e -> {
             String newTitle = titleField.getText().trim();
             String newAuthor = authorField.getText().trim();
             String newGenre = genreField.getText().trim();
             boolean newAvailable = availableCheckBox.isSelected();
-
+    
             if (newTitle.isEmpty() || newAuthor.isEmpty() || newGenre.isEmpty()) {
                 JOptionPane.showMessageDialog(null, "All fields must be filled!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-
-            saveBookChanges(bookTable, row, newTitle, newAuthor, newGenre, newAvailable);
+    
+            // ✅ Update MongoDB instead of JSON
+            BookDAO.updateBook(oldTitle, newTitle, newAuthor, newGenre, newAvailable);
+            displayBooksPanel(); // Refresh table
             editFrame.dispose();
         });
-
+    
         gbc.gridy++;
-        JLabel spacer = new JLabel(" ");
-        spacer.setPreferredSize(new Dimension(1, 20));
-        panel.add(spacer, gbc);
-
-        addFormRow(panel, "Title:", titleField, gbc);
-        addFormRow(panel, "Author:", authorField, gbc);
-        addFormRow(panel, "Genre:", genreField, gbc);
-
+        panel.add(new JLabel("Title:"), gbc);
+        panel.add(titleField, gbc);
+        gbc.gridy++;
+        panel.add(new JLabel("Author:"), gbc);
+        panel.add(authorField, gbc);
+        gbc.gridy++;
+        panel.add(new JLabel("Genre:"), gbc);
+        panel.add(genreField, gbc);
         gbc.gridy++;
         panel.add(availableCheckBox, gbc);
-
         gbc.gridy++;
-        gbc.anchor = GridBagConstraints.CENTER;
         panel.add(saveButton, gbc);
-
-        JScrollPane scrollPane = new JScrollPane(panel);
-        scrollPane.setBorder(null);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-
-        editFrame.add(scrollPane, BorderLayout.CENTER);
+    
+        editFrame.add(panel, BorderLayout.CENTER);
         editFrame.setVisible(true);
     }
-
-    // Method to save the changes to the book
-    private void saveBookChanges(JTable bookTable, int row, String newTitle, String newAuthor, String newGenre, boolean newAvailable) {
-        String oldTitle = (String) bookTable.getValueAt(row, 0);
-        String filePath = new File("src/library/books/books.json").getAbsolutePath();
-        File file = new File(filePath);
-
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader(file));
-            StringBuilder jsonContent = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                jsonContent.append(line);
-            }
-            reader.close();
-
-            JSONArray booksArray = new JSONArray(jsonContent.toString());
-            for (int i = 0; i < booksArray.length(); i++) {
-                JSONObject book = booksArray.getJSONObject(i);
-                if (book.getString("title").equals(oldTitle)) {
-                    book.put("title", newTitle);
-                    book.put("author", newAuthor);
-                    book.put("genre", newGenre);
-                    book.put("available", newAvailable);
-                    break;
-                }
-            }
-
-            BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-            writer.write(booksArray.toString(4));
-            writer.close();
-
-            JOptionPane.showMessageDialog(this, "Book updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-            displayBooksPanel();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error updating book!", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-    
     // Method to delete a book
     private void deleteBook(JTable bookTable, int row) {
+        if (row < 0) return;
+    
         String title = (String) bookTable.getValueAt(row, 0);
-        String filePath = new File("src/library/books/books.json").getAbsolutePath();
-        File file = new File(filePath);
+        int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete " + title + "?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
     
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader(file));
-            StringBuilder jsonContent = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                jsonContent.append(line);
-            }
-            reader.close();
-    
-            JSONArray booksArray = new JSONArray(jsonContent.toString());
-            for (int i = 0; i < booksArray.length(); i++) {
-                JSONObject book = booksArray.getJSONObject(i);
-                if (book.getString("title").equals(title)) {
-                    booksArray.remove(i);
-                    break;
-                }
-            }
-    
-            BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-            writer.write(booksArray.toString(4)); // Pretty-print JSON
-            writer.close();
-    
-            JOptionPane.showMessageDialog(this, "Book deleted successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-            displayBooksPanel(); // Refresh books table
-    
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error deleting book!", "Error", JOptionPane.ERROR_MESSAGE);
+        if (confirm == JOptionPane.YES_OPTION) {
+            // ✅ Delete from MongoDB
+            BookDAO.deleteBook(title);
+            displayBooksPanel(); 
         }
     }
-
-    // Load books from books.json
-    private Object[][] loadBooksFromLocalStorage() {
-        String filePath = "/library/books/books.json"; // Path inside src/
-
-        try {
-            InputStream is = getClass().getResourceAsStream(filePath);
-            if (is == null) {
-                System.out.println("books.json not found!");
-                return new Object[0][4];
-            }
-
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
-            StringBuilder jsonContent = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                jsonContent.append(line);
-            }
-            reader.close();
-
-            JSONArray booksArray = new JSONArray(jsonContent.toString());
-            Object[][] data = new Object[booksArray.length()][4];
-
-            for (int i = 0; i < booksArray.length(); i++) {
-                JSONObject book = booksArray.getJSONObject(i);
-                data[i][0] = book.getString("title");
-                data[i][1] = book.getString("author");
-                data[i][2] = book.getString("genre");
-                data[i][3] = book.getBoolean("available") ? "Available" : "Borrowed";
-            }
-
-            return data;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new Object[0][4];
-        }
-    }
-
 
     // Show Add Book Form
     private void addBookPanel() {
@@ -822,13 +647,14 @@ public class AdminDashboard extends JFrame {
             String author = authorField.getText().trim();
             String genre = genreField.getText().trim();
             boolean available = availableCheckBox.isSelected();
-    
+        
             if (title.isEmpty() || author.isEmpty() || genre.isEmpty()) {
                 JOptionPane.showMessageDialog(null, "All fields must be filled!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-    
-            addBookToStorage(title, author, genre, available);
+        
+            // ✅ Save to MongoDB
+            addBookToDatabase(title, author, genre, available);
         });
     
         // Spacer Below the Title (Extra Space Before Form Fields)
@@ -853,12 +679,14 @@ public class AdminDashboard extends JFrame {
         JScrollPane scrollPane = new JScrollPane(panel);
         scrollPane.setBorder(null);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-    
+
+        // ✅ Add this at the end of addBookPanel()
         content.add(scrollPane, BorderLayout.CENTER);
         content.revalidate();
         content.repaint();
+
     }
-    
+
 
 // 🏗️ Create Rounded TextField
 private JTextField createRoundedTextField() {
@@ -900,53 +728,19 @@ private void addFormRow(JPanel panel, String labelText, JTextField field, GridBa
 
 
 // Add Book to books.json
-private void addBookToStorage(String title, String author, String genre, boolean available) {
-    String filePath = new File("src/library/books/books.json").getAbsolutePath();
-    File file = new File(filePath);
-    JSONArray booksArray = new JSONArray();
-
+private void addBookToDatabase(String title, String author, String genre, boolean available) {
     try {
-        // Ensure books.json exists
-        if (file.exists()) {
-            BufferedReader reader = new BufferedReader(new FileReader(file));
-            StringBuilder jsonContent = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                jsonContent.append(line);
-            }
-            reader.close();
-
-            // Load existing books only if the file is not empty
-            if (!jsonContent.toString().trim().isEmpty()) {
-                booksArray = new JSONArray(jsonContent.toString());
-            }
-        } else {
-            file.getParentFile().mkdirs(); // Create books directory if not exists
-            file.createNewFile();
-        }
-
-        // Create new book object
-        JSONObject newBook = new JSONObject();
-        newBook.put("title", title);
-        newBook.put("author", author);
-        newBook.put("genre", genre);
-        newBook.put("available", available);
-
-        // Add to the array and save
-        booksArray.put(newBook);
-
-        BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-        writer.write(booksArray.toString(4)); // Pretty-print JSON
-        writer.close();
+        // ✅ Insert into MongoDB instead of JSON
+        BookDAO.addBook(title, author, genre, available);
 
         JOptionPane.showMessageDialog(this, "Book added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-        displayBooksPanel(); // Refresh books table
-
+        displayBooksPanel(); // Refresh table
     } catch (Exception e) {
         e.printStackTrace();
         JOptionPane.showMessageDialog(this, "Error saving book!", "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
+
 
 
 private void deleteAdminPanel() {
@@ -990,21 +784,21 @@ private void deleteAdminPanel() {
 
     deleteButton.addActionListener(e -> {
         String username = usernameField.getText().trim();
-
+    
         if (username.isEmpty()) {
             JOptionPane.showMessageDialog(null, "Username field cannot be empty!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
-        if (deleteAdminFromStorage(username)) {
+    
+        if (UserDAO.deleteAdmin(username)) { // ✅ Use MongoDB method
             JOptionPane.showMessageDialog(null, "Admin deleted successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-            usernameField.setText(""); // Clear the field after successful deletion
+            usernameField.setText("");
         } else {
             JOptionPane.showMessageDialog(null, "Admin not found!", "Error", JOptionPane.ERROR_MESSAGE);
             usernameField.setText("");
         }
     });
-
+    
     // Spacer Below the Title
     gbc.gridy++;
     JLabel spacer = new JLabel(" ");
@@ -1026,42 +820,6 @@ private void deleteAdminPanel() {
     content.add(scrollPane, BorderLayout.CENTER);
     content.revalidate();
     content.repaint();
-}
-
-
-
-private boolean deleteAdminFromStorage(String username) {
-    try {
-        String filePath = "src/library/users/admins.json";
-        File file = new File(filePath);
-
-        if (!file.exists()) {
-            System.out.println("Error: admins.json not found at " + file.getAbsolutePath());
-            return false;
-        }
-
-        String content = new String(Files.readAllBytes(Paths.get(filePath)));
-        JSONArray adminsArray = new JSONArray(content);
-
-        boolean found = false;
-        for (int i = 0; i < adminsArray.length(); i++) {
-            JSONObject adminObject = adminsArray.getJSONObject(i);
-            if (adminObject.getString("username").equals(username)) {
-                adminsArray.remove(i);
-                found = true;
-                break;
-            }
-        }
-
-        if (found) {
-            Files.write(Paths.get(filePath), adminsArray.toString(4).getBytes());
-            return true;
-        }
-
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-    return false;
 }
 
 private void showChangePasswordDialog() {
@@ -1101,53 +859,15 @@ private void showChangePasswordDialog() {
 }
 
 private void verifyAndChangePassword(String username, String oldPassword, String newPassword) {
-    String filePath = new File("src/library/users/admins.json").getAbsolutePath();
-    JSONArray admins = readAdminsFromFile(filePath);
+    boolean success = UserDAO.changePassword(username, oldPassword, newPassword);
 
-    for (int i = 0; i < admins.length(); i++) {
-        JSONObject admin = admins.getJSONObject(i);
-
-        if (admin.getString("username").equals(username)) {
-            String storedHashedPassword = admin.getString("password");
-
-            // Verify old password
-            if (!BCrypt.checkpw(oldPassword, storedHashedPassword)) {
-                JOptionPane.showMessageDialog(null, "Old password is incorrect!", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            // Hash new password and update JSON
-            String hashedPassword = BCrypt.hashpw(newPassword, BCrypt.gensalt());
-            admin.put("password", hashedPassword);
-            writeAdminsToFile(filePath, admins);
-
-            JOptionPane.showMessageDialog(null, "Password changed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-    }
-
-    JOptionPane.showMessageDialog(null, "Admin not found!", "Error", JOptionPane.ERROR_MESSAGE);
-}
-
-
-private JSONArray readAdminsFromFile(String filePath) {
-    try {
-        String content = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
-        return new JSONArray(content);
-    } catch (IOException e) {
-        e.printStackTrace();
-        return new JSONArray();
+    if (success) {
+        JOptionPane.showMessageDialog(null, "✅ Password changed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+    } else {
+        JOptionPane.showMessageDialog(null, "❌ Failed to change password. Check username and old password!", "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
 
-private void writeAdminsToFile(String filePath, JSONArray admins) {
-    try (FileWriter file = new FileWriter(filePath)) {
-        file.write(admins.toString(4)); 
-        file.flush();
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
-}
 
     private void displayRequestedBooksPanel() {
         content.removeAll();
@@ -1249,224 +969,43 @@ private void writeAdminsToFile(String filePath, JSONArray admins) {
                 return;
             }
         
-            String adminRequestPath = new File("src/library/requests/admin_requests/requests.json").getAbsolutePath();
+            // ✅ Fetch the request from MongoDB instead of JSON
+            Document request = RequestDAO.getRequestByRow(row);
             
-            try (BufferedReader reader = new BufferedReader(new FileReader(adminRequestPath))) {
-                StringBuilder jsonString = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    jsonString.append(line);
-                }
-        
-                JSONArray requestsArray = new JSONArray(jsonString.toString());
-        
-                if (requestsArray.length() == 0) {
-                    JOptionPane.showMessageDialog(null, "No requests found!", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-        
-                // Get the request object at the selected row
-                JSONObject request = requestsArray.getJSONObject(row);
-                String username = request.getString("username");
-                String bookTitle = request.getString("title");
-        
-                if (accepted) {
-                    request.put("status", "Accepted");
-                    moveToBorrowedBooks(request, username);
-                } else {
-                    request.put("status", "Rejected");
-                }
-        
-                // Remove from requests.json
-                requestsArray.remove(row);
-        
-                // Save the updated requests.json
-                try (FileWriter fileWriter = new FileWriter(adminRequestPath)) {
-                    fileWriter.write(requestsArray.toString(4)); // Pretty print JSON
-                }
-        
-                // Update user's request file
-                updateUserRequestStatus(username, bookTitle, accepted ? "Accepted" : "Rejected");
-        
-                JOptionPane.showMessageDialog(null, accepted ? "Request Accepted" : "Request Rejected", "Request Status", JOptionPane.INFORMATION_MESSAGE);
-                
-            } catch (Exception e) {
-                e.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Error processing request!", "Error", JOptionPane.ERROR_MESSAGE);
+            if (request == null) {
+                JOptionPane.showMessageDialog(null, "No requests found!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
             }
-        }
         
+            String username = request.getString("username");
+            String bookTitle = request.getString("title");
         
-        // Helper method to read file content
-        private String readFile(String filePath) throws IOException {
-            File file = new File(filePath);
-            if (!file.exists()) return "[]"; // Return empty JSON array if file doesn't exist
-            return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-        }
+            if (accepted) {
+                request.append("status", "Accepted");
         
-        // Helper method to write file content
-        private void writeFile(String filePath, String content) throws IOException {
-            Files.write(Paths.get(filePath), content.getBytes(StandardCharsets.UTF_8));
-        }
+                // ✅ Move to Borrowed Books in MongoDB
+                BorrowedBooksDAO.moveToBorrowedBooks(
+                    request.getString("title"),
+                    request.getString("author"),
+                    request.getString("genre"),
+                    username
+                );
+            } else {
+                request.append("status", "Rejected");
+            }
         
-    }
+            // ✅ Remove the request from MongoDB
+            RequestDAO.deleteRequest(request);
+        
+            // ✅ Update the user's request status in MongoDB
+            RequestDAO.updateUserRequestStatus(username, bookTitle, accepted ? "Accepted" : "Rejected");
+        
+            JOptionPane.showMessageDialog(null, accepted ? "Request Accepted" : "Request Rejected", "Request Status", JOptionPane.INFORMATION_MESSAGE);
 
-    
-
-    private void moveToBorrowedBooks(JSONObject request, String username) {
-        // Paths to required files
-        String borrowedBooksPath = new File("src/library/requests/admin_requests/borrowed_books.json").getAbsolutePath();
-        String userBorrowedBooksPath = new File("src/library/requests/user_requests/" + username + "_borrowed_books.json").getAbsolutePath();
-        String booksFilePath = new File("src/library/books/books.json").getAbsolutePath();
-    
-        try {
-            // ✅ Read and update global borrowed books
-            JSONArray borrowedBooksArray = readJsonArray(borrowedBooksPath);
-            JSONArray userBorrowedBooksArray = readJsonArray(userBorrowedBooksPath);
-            JSONArray booksArray = readJsonArray(booksFilePath);
-    
-            // ✅ Prepare book object with timestamp & return deadline
-            JSONObject borrowedBook = prepareBorrowedBook(request, username);
-    
-            // ✅ Add the borrowed book to global & user-specific lists
-            borrowedBooksArray.put(borrowedBook);
-            userBorrowedBooksArray.put(borrowedBook);
-            
-            // ✅ Update book availability in books.json
-            boolean bookFound = false;
-            for (int i = 0; i < booksArray.length(); i++) {
-                JSONObject book = booksArray.getJSONObject(i);
-                if (book.getString("title").equals(request.getString("title")) &&
-                    book.getString("author").equals(request.getString("author"))) {
-                    
-                    // ❌ Prevent double borrowing if already borrowed
-                    if (book.has("availability") && book.getString("availability").equals("Borrowed")) {
-                        System.out.println("⚠️ Error: Book is already borrowed!");
-                        return;
-                    }
-                    
-                    book.put("availability", "Borrowed"); // ✅ Update status
-                    book.put("available", false); // ✅ Ensure 'available' field is updated
-                    bookFound = true;
-                    System.out.println("📌 Book status updated: " + book.toString());
-                    break;
-                }
-            }
-    
-            if (!bookFound) {
-                System.out.println("❌ Error: Book not found in books.json!");
-                return; // Exit to prevent unnecessary writes
-            }
-    
-            // ✅ Save changes to respective JSON files
-            writeJsonToFile(borrowedBooksPath, borrowedBooksArray);
-            writeJsonToFile(userBorrowedBooksPath, userBorrowedBooksArray);
-            writeJsonToFile(booksFilePath, booksArray);
-            System.out.println("✅ All files successfully updated!");
-    
-            // ✅ Refresh UI to reflect changes
-            displayBooksPanel();
-    
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("❌ Unexpected error in moveToBorrowedBooks: " + e.getMessage());
+            displayRequestedBooksPanel();
         }
-    }
-    
-
-    private void writeJsonToFile(String filePath, JSONArray jsonArray) {
-        try {
-            Files.write(new File(filePath).toPath(), jsonArray.toString(4).getBytes(StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.out.println("❌ Failed to write JSON to " + filePath);
-        }
-    }
-    
-    
-    
-    
-
-    private JSONObject prepareBorrowedBook(JSONObject request, String username) {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        Calendar calendar = Calendar.getInstance();
         
-        // Set borrowed timestamp
-        String borrowedAt = dateFormat.format(calendar.getTime());
-    
-        // Set return deadline (7 days from borrowed date)
-        calendar.add(Calendar.DAY_OF_YEAR, 7);
-        String returnBy = dateFormat.format(calendar.getTime());
-    
-        // Create new JSON object for borrowed book
-        JSONObject borrowedBook = new JSONObject();
-        borrowedBook.put("title", request.getString("title"));
-        borrowedBook.put("author", request.getString("author"));
-        borrowedBook.put("genre", request.getString("genre"));
-        borrowedBook.put("availability", "Borrowed"); // Change availability
-        borrowedBook.put("borrowed_at", borrowedAt);
-        borrowedBook.put("return_by", returnBy);
-        borrowedBook.put("borrower", username);
-    
-        return borrowedBook;
-    }
-    
-    
-    
-    // Helper method to read a JSON array from a file
-    private JSONArray readJsonArray(String filePath) {
-        File file = new File(filePath);
-        if (!file.exists()) return new JSONArray(); // Return empty array if file doesn't exist
-    
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-            StringBuilder jsonString = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                jsonString.append(line);
-            }
-            return new JSONArray(jsonString.toString());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new JSONArray();
-        }
-    }
-    
-    // Helper method to write a JSON array to a file
-    private void writeJsonArray(String filePath, JSONArray jsonArray) {
-        try (FileWriter fileWriter = new FileWriter(filePath)) {
-            fileWriter.write(jsonArray.toString(4)); // Pretty print JSON
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void updateUserRequestStatus(String username, String bookTitle, String status) {
-        String userRequestPath = new File("src/library/requests/user_requests/" + username + "_requests.json").getAbsolutePath();
         
-        try (BufferedReader reader = new BufferedReader(new FileReader(userRequestPath))) {
-            StringBuilder jsonString = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                jsonString.append(line);
-            }
-    
-            JSONArray userRequestsArray = new JSONArray(jsonString.toString());
-    
-            for (int i = 0; i < userRequestsArray.length(); i++) {
-                JSONObject userRequest = userRequestsArray.getJSONObject(i);
-                if (userRequest.getString("title").equals(bookTitle)) {
-                    userRequest.put("status", status);
-                    break;
-                }
-            }
-    
-            try (FileWriter fileWriter = new FileWriter(userRequestPath)) {
-                fileWriter.write(userRequestsArray.toString(4));
-            }
-    
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     class RequestButtonRenderer extends JPanel implements TableCellRenderer {
@@ -1533,69 +1072,15 @@ private void writeAdminsToFile(String filePath, JSONArray admins) {
     }
     
     private Object[][] loadBorrowedBooksData() {
-        List<Object[]> dataList = new ArrayList<>();
-        String filePath = "src/library/requests/admin_requests/borrowed_books.json";
-        
-        try {
-            String content = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
-            JSONArray jsonArray = new JSONArray(content);
-    
-            for (int i = 0; i < jsonArray.length(); i++) {
-                JSONObject obj = jsonArray.getJSONObject(i);
-                dataList.add(new Object[] {
-                    obj.getString("title"),
-                    obj.getString("author"),
-                    obj.getString("genre"),
-                    obj.getString("borrower"),
-                    obj.getString("borrowed_at"),
-                    obj.getString("return_by"),
-                    obj.getString("availability")
-                });
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        
-        return dataList.toArray(new Object[0][]);
-    }
-    
-
-
-
-
-    
-    
-    
+    List<Object[]> dataList = BorrowedBooksDAO.getBorrowedBooks();
+    return dataList.toArray(new Object[0][]);
+    }       
 
     private Object[][] loadRequestedBooksData() {
-        String adminRequestPath = new File("src/library/requests/admin_requests/requests.json").getAbsolutePath();
-        List<Object[]> data = new ArrayList<>();
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(adminRequestPath))) {
-            StringBuilder jsonString = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                jsonString.append(line);
-            }
-
-            // Parse JSON
-            JSONArray requestsArray = new JSONArray(jsonString.toString());
-            for (int i = 0; i < requestsArray.length(); i++) {
-                JSONObject request = requestsArray.getJSONObject(i);
-                data.add(new Object[]{
-                    request.getString("title"),
-                    request.getString("author"),
-                    request.getString("genre"),
-                    request.getString("username"),
-                    "Actions"
-                });
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return data.toArray(new Object[0][]);
+    List<Object[]> dataList = RequestDAO.getRequestedBooks();
+    return dataList.toArray(new Object[0][]);
     }
+
 
 
 

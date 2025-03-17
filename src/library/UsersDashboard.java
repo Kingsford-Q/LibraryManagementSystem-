@@ -9,6 +9,14 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.mindrot.jbcrypt.BCrypt;
 
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import org.bson.Document;
+import library.db.BookDAO;
+import library.db.BorrowedBooksDAO;
+import library.db.RequestDAO;
+import library.db.UserDAO;
+
 import java.awt.*;
 import java.io.BufferedReader;
 import java.io.File;
@@ -22,6 +30,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import static com.mongodb.client.model.Filters.*;
+import static com.mongodb.client.model.Updates.set;
+import static com.mongodb.client.model.Updates.combine;
+
 
 
 public class UsersDashboard extends JFrame {
@@ -64,7 +76,7 @@ public class UsersDashboard extends JFrame {
                 button.addActionListener(e -> {
                     String currentUsername = SessionManager.getLoggedInUser();
                     if (currentUsername != null) {
-                        displayRequestedBooksPanel(currentUsername);
+                        displayRequestedBooksPanel();
                     } else {
                         JOptionPane.showMessageDialog(null, "Error: No user is logged in!", "Error", JOptionPane.ERROR_MESSAGE);
                     }
@@ -220,55 +232,14 @@ public class UsersDashboard extends JFrame {
 }
 
 private void verifyAndChangePassword(String username, String oldPassword, String newPassword) {
-    String filePath = new File("src/library/users/users.json").getAbsolutePath();
-    JSONArray users = readUsersFromFile(filePath);
+    boolean success = UserDAO.changePassword(username, oldPassword, newPassword);
 
-    for (int i = 0; i < users.length(); i++) {
-        JSONObject user = users.getJSONObject(i);
-
-        if (user.getString("username").equals(username)) {
-            String storedHashedPassword = user.getString("password");
-
-            // Verify old password
-            if (!BCrypt.checkpw(oldPassword, storedHashedPassword)) {
-                JOptionPane.showMessageDialog(null, "Old password is incorrect!", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            // Hash new password and update JSON
-            String hashedPassword = BCrypt.hashpw(newPassword, BCrypt.gensalt());
-            user.put("password", hashedPassword);
-            writeUsersToFile(filePath, users);
-
-            JOptionPane.showMessageDialog(null, "Password changed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-    }
-
-    JOptionPane.showMessageDialog(null, "User not found!", "Error", JOptionPane.ERROR_MESSAGE);
-}
-
-private JSONArray readUsersFromFile(String filePath) {
-    try {
-        String content = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
-        return new JSONArray(content);
-    } catch (IOException e) {
-        e.printStackTrace();
-        return new JSONArray();
+    if (success) {
+        JOptionPane.showMessageDialog(null, "✅ Password changed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+    } else {
+        JOptionPane.showMessageDialog(null, "❌ Incorrect old password!", "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
-
-private void writeUsersToFile(String filePath, JSONArray users) {
-    try (FileWriter file = new FileWriter(filePath)) {
-        file.write(users.toString(4));
-        file.flush();
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
-}
-
-
-    
 
     private void displayBooksPanel() {
         content.removeAll();
@@ -301,7 +272,18 @@ private void writeUsersToFile(String filePath, JSONArray users) {
         content.add(searchPanel, BorderLayout.NORTH);
 
         String[] columnNames = { "Title", "Author", "Genre", "Availability", "Actions" };
-        Object[][] bookData = loadAvailableBooksFromLocalStorage();
+
+        List<Document> books = BookDAO.getAllBooks();
+        Object[][] bookData = new Object[books.size()][5];
+
+        for (int i = 0; i < books.size(); i++) {
+            Document book = books.get(i);
+            bookData[i][0] = book.getString("title");
+            bookData[i][1] = book.getString("author");
+            bookData[i][2] = book.getString("genre");
+            bookData[i][3] = book.getBoolean("available") ? "Available" : "Borrowed";
+            bookData[i][4] = "Edit | Delete"; // Placeholder for buttons
+        }
 
         DefaultTableModel model = new DefaultTableModel(bookData, columnNames) {
             @Override
@@ -347,13 +329,6 @@ private void writeUsersToFile(String filePath, JSONArray users) {
         }
     }
 
-    // Method to load only available books
-    private Object[][] loadAvailableBooksFromLocalStorage() {
-        Object[][] allBooks = loadBooksFromLocalStorage();
-        return Arrays.stream(allBooks)
-            .filter(book -> "Available".equals(book[3])) // Only include available books
-            .toArray(Object[][]::new);
-    }
 
     // Custom renderer for the borrow button
     class RequestButtonRenderer extends JPanel implements TableCellRenderer {
@@ -422,142 +397,33 @@ private void writeUsersToFile(String filePath, JSONArray users) {
             return;
         }
     
-        // Check for duplicate request
-        if (isDuplicateRequest(username, title)) {
+        // Check for duplicate request in MongoDB
+        if (RequestDAO.isDuplicateRequest(username, title)) {
             JOptionPane.showMessageDialog(null, "You have already requested this book.");
             return;
         }
     
-        // Create JSON object for the request
-        JSONObject requestObj = new JSONObject();
-        requestObj.put("username", username);
-        requestObj.put("title", title);
-        requestObj.put("author", author);
-        requestObj.put("genre", genre);
-        requestObj.put("availability", availability);
-        requestObj.put("status", "pending");
-    
-        // Save request to both user and admin files
-        saveRequest(username, requestObj);
+        // ✅ Save request to MongoDB
+        RequestDAO.addBookRequest(username, title, author, genre, availability);
     
         JOptionPane.showMessageDialog(null, "Book request sent successfully!");
-    }
-
-    private void saveRequest(String username, JSONObject bookRequest) {
-    try {
-        // Define paths
-        String userRequestPath = new File("src/library/requests/user_requests/" + username + "_requests.json").getAbsolutePath();
-        String adminRequestPath = new File("src/library/requests/admin_requests/requests.json").getAbsolutePath();
-
-        File userRequestsFile = new File(userRequestPath);
-        File adminRequestsFile = new File(adminRequestPath);
-
-        // Ensure directories exist
-        userRequestsFile.getParentFile().mkdirs();
-        adminRequestsFile.getParentFile().mkdirs();
-
-        // Load existing user requests
-        JSONArray userRequestsArray = new JSONArray();
-        if (userRequestsFile.exists()) {
-            String existingData = new String(Files.readAllBytes(userRequestsFile.toPath()), StandardCharsets.UTF_8);
-            if (!existingData.isEmpty()) {
-                userRequestsArray = new JSONArray(existingData);
-            }
-        }
-        userRequestsArray.put(bookRequest);
-
-        // Save back to file
-        Files.write(userRequestsFile.toPath(), userRequestsArray.toString(4).getBytes(StandardCharsets.UTF_8));
-
-        // Load existing admin requests
-        JSONArray adminRequestsArray = new JSONArray();
-        if (adminRequestsFile.exists()) {
-            String existingData = new String(Files.readAllBytes(adminRequestsFile.toPath()), StandardCharsets.UTF_8);
-            if (!existingData.isEmpty()) {
-                adminRequestsArray = new JSONArray(existingData);
-            }
-        }
-        adminRequestsArray.put(bookRequest);
-
-        // Save back to admin requests file
-        Files.write(adminRequestsFile.toPath(), adminRequestsArray.toString(4).getBytes(StandardCharsets.UTF_8));
-
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
-}
-
-
-    private JSONArray readJsonArray(File file) {
-        if (!file.exists()) return new JSONArray(); // If file doesn't exist, return an empty array
-
-        try {
-            String content = new String(Files.readAllBytes(file.toPath()));
-            return new JSONArray(content);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new JSONArray(); // Return empty if there's an error
-        }
-    }
-
-    private boolean isDuplicateRequest(String username, String title) {
-        File userFile = new File(new File("").getAbsolutePath() + "/src/library/users/user_requests.json");
-
-        // Read existing requests
-        JSONArray userRequestsArray = readJsonArray(userFile);
-
-        for (int i = 0; i < userRequestsArray.length(); i++) {
-            JSONObject request = userRequestsArray.getJSONObject(i);
-            if (request.getString("username").equals(username) && request.getString("title").equals(title)) {
-                return true; // Duplicate found
-            }
-        }
-        return false; // No duplicate
-    }
-
     
+        // ✅ Refresh the Requests Panel to show the new request
+        displayRequestedBooksPanel();
+    }
     
 
-
-    private Object[][] loadBooksFromLocalStorage() {
-        String filePath = "/library/books/books.json"; // Path inside src/
-
-        try {
-            InputStream is = getClass().getResourceAsStream(filePath);
-            if (is == null) {
-                System.out.println("books.json not found!");
-                return new Object[0][4];
-            }
-
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
-            StringBuilder jsonContent = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                jsonContent.append(line);
-            }
-            reader.close();
-
-            JSONArray booksArray = new JSONArray(jsonContent.toString());
-            Object[][] data = new Object[booksArray.length()][4];
-
-            for (int i = 0; i < booksArray.length(); i++) {
-                JSONObject book = booksArray.getJSONObject(i);
-                data[i][0] = book.getString("title");
-                data[i][1] = book.getString("author");
-                data[i][2] = book.getString("genre");
-                data[i][3] = book.getBoolean("available") ? "Available" : "Borrowed";
-            }
-
-            return data;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new Object[0][4];
-        }
-    }
-
-    private void displayRequestedBooksPanel(String username) {
+    
+    private void displayRequestedBooksPanel() {
         content.removeAll();
         content.setLayout(new BorderLayout());
+    
+        // ✅ Get logged-in user automatically
+        String username = SessionManager.getLoggedInUser();
+        if (username == null) {
+            JOptionPane.showMessageDialog(null, "Error: User not logged in.");
+            return;
+        }
     
         // Search Panel
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
@@ -582,11 +448,10 @@ private void writeUsersToFile(String filePath, JSONArray users) {
     
         searchPanel.add(searchField);
         searchPanel.add(searchButton);
-    
         content.add(searchPanel, BorderLayout.NORTH);
     
-        // Table Setup
-        String[] columnNames = { "Title", "Author", "Genre", "Status",};
+        // ✅ Fetch user’s requests from MongoDB
+        String[] columnNames = { "Title", "Author", "Genre", "Status", "Requested At"};
         Object[][] bookData = loadRequestedBooks(username);
     
         DefaultTableModel model = new DefaultTableModel(bookData, columnNames) {
@@ -615,35 +480,22 @@ private void writeUsersToFile(String filePath, JSONArray users) {
             filterTable(requestTable, query);
         });
     }
+    
 
     private Object[][] loadRequestedBooks(String username) {
-        String filePath = "src/library/requests/user_requests/" + username + "_requests.json";
-        File file = new File(filePath);
-    
-        if (!file.exists()) {
-            return new Object[0][5]; // Return empty table if file does not exist
+        List<Document> requests = RequestDAO.getUserRequestedBooks(username); // ✅ Fetch requests for user
+        
+        Object[][] data = new Object[requests.size()][5];
+        for (int i = 0; i < requests.size(); i++) {
+            Document book = requests.get(i);
+            data[i][0] = book.getString("title");
+            data[i][1] = book.getString("author");
+            data[i][2] = book.getString("genre");
+            data[i][3] = book.getString("status");
+            data[i][4] = book.getString("requested_at"); // Ensure `requested_at` exists in MongoDB
         }
-    
-        try {
-            JSONArray requestsArray = readJsonArray(new File(filePath));
-            Object[][] data = new Object[requestsArray.length()][5];
-    
-            for (int i = 0; i < requestsArray.length(); i++) {
-                JSONObject book = requestsArray.getJSONObject(i);
-                data[i][0] = book.getString("title");
-                data[i][1] = book.getString("author");
-                data[i][2] = book.getString("genre");
-                data[i][3] = book.getString("status");
-                data[i][4] = book.optString("requested_at", "N/A");
-            }
-    
-            return data;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new Object[0][5]; // Return empty table on error
-        }
+        return data;
     }
-
 
     private void displayBorrowedBooksPanel() {
         content.removeAll();
@@ -655,10 +507,18 @@ private void writeUsersToFile(String filePath, JSONArray users) {
             JOptionPane.showMessageDialog(null, "User not logged in!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
+
+        List<Object[]> borrowedBooksList = BorrowedBooksDAO.getUserBorrowedBooks(username);
+        Object[][] bookData = borrowedBooksList.toArray(new Object[0][]);
+
+        // Debugging Output
+        System.out.println("✅ Loaded Borrowed Books Data for " + username);
+        for (Object[] row : bookData) {
+            System.out.println(Arrays.toString(row));
+        }
     
         // Table headers (Added "Return Book" column)
         String[] columnNames = { "Title", "Author", "Genre", "Borrowed At", "Return By", "Action" };
-        Object[][] bookData = loadBorrowedBooks(username);
     
         // Debugging output
         System.out.println("✅ Loaded Borrowed Books Data:");
@@ -751,123 +611,17 @@ private void writeUsersToFile(String filePath, JSONArray users) {
             // Get book details from the row
             String title = (String) table.getValueAt(selectedRow, 0);
             String author = (String) table.getValueAt(selectedRow, 1);
-            String genre = (String) table.getValueAt(selectedRow, 2);
     
-            // Update the files to remove the book from borrowed and mark it as available
-            processBookReturn(title, author, username);
-    
-            // Remove the book from the table
-            ((DefaultTableModel) table.getModel()).removeRow(selectedRow);
-    
-            JOptionPane.showMessageDialog(null, "Book returned successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            boolean success = BorrowedBooksDAO.processBookReturn(title, author, username);
+
+            if (success) {
+                ((DefaultTableModel) table.getModel()).removeRow(selectedRow);
+                JOptionPane.showMessageDialog(null, "Book returned successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(null, "Error returning book. Check logs!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
+    
+    
     }
-
-    private void processBookReturn(String title, String author, String username) {
-    File borrowedBooksFile = new File("src/library/requests/admin_requests/borrowed_books.json");
-    File userBorrowedBooksFile = new File("src/library/requests/user_requests/" + username + "_borrowed_books.json");
-    File booksFile = new File("src/library/books/books.json");
-
-    try {
-        // Read borrowed books and remove the returned one
-        JSONArray borrowedBooks = readJsonArray(borrowedBooksFile);
-        JSONArray updatedBorrowedBooks = new JSONArray();
-
-        for (int i = 0; i < borrowedBooks.length(); i++) {
-            JSONObject book = borrowedBooks.getJSONObject(i);
-            if (!book.getString("title").equals(title) || !book.getString("author").equals(author)) {
-                updatedBorrowedBooks.put(book);
-            }
-        }
-        Files.write(borrowedBooksFile.toPath(), updatedBorrowedBooks.toString(4).getBytes(StandardCharsets.UTF_8));
-
-        // Read user borrowed books and remove the returned one
-        JSONArray userBorrowedBooks = readJsonArray(userBorrowedBooksFile);
-        JSONArray updatedUserBorrowedBooks = new JSONArray();
-
-        for (int i = 0; i < userBorrowedBooks.length(); i++) {
-            JSONObject book = userBorrowedBooks.getJSONObject(i);
-            if (!book.getString("title").equals(title) || !book.getString("author").equals(author)) {
-                updatedUserBorrowedBooks.put(book);
-            }
-        }
-        Files.write(userBorrowedBooksFile.toPath(), updatedUserBorrowedBooks.toString(4).getBytes(StandardCharsets.UTF_8));
-
-        // Update books.json to mark the book as "Available"
-        JSONArray books = readJsonArray(booksFile);
-        for (int i = 0; i < books.length(); i++) {
-            JSONObject book = books.getJSONObject(i);
-            if (book.getString("title").equals(title) && book.getString("author").equals(author)) {
-                book.put("available", true); // ✅ Boolean update
-                book.put("availability", "Available"); // ✅ String update
-                break;
-            }
-        }
-
-        // Debugging: Print updated books.json
-        System.out.println("📢 Updated books.json:");
-        System.out.println(books.toString(4));
-
-        Files.write(booksFile.toPath(), books.toString(4).getBytes(StandardCharsets.UTF_8));
-
-        // ✅ Refresh UI for admin
-        displayBooksPanel();
-
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
-}
-
-
-    
-    private Object[][] loadBorrowedBooks(String username) {
-        // Get user-specific borrowed books file path
-        String userBorrowedBooksPath = new File("src/library/requests/user_requests/" + username + "_borrowed_books.json").getAbsolutePath();
-        File file = new File(userBorrowedBooksPath);
-    
-        if (!file.exists()) {
-            System.out.println("❌ Borrowed books file not found: " + userBorrowedBooksPath);
-            return new Object[0][5]; // Return empty if no borrowed books
-        }
-    
-        try {
-            JSONArray borrowedBooksArray = readJsonArray(file);
-            List<Object[]> filteredBooks = new ArrayList<>();
-    
-            // Debugging: Print raw JSON content
-            System.out.println("📄 Borrowed Books JSON Content:");
-            System.out.println(borrowedBooksArray.toString(2));
-    
-            for (int i = 0; i < borrowedBooksArray.length(); i++) {
-                JSONObject bookObject = borrowedBooksArray.getJSONObject(i);
-    
-                // Debug: Print each book's details
-                System.out.println("🔍 Checking book: " + bookObject.getString("title"));
-    
-                // Ensure book has an "availability" field and is "Borrowed"
-                if (!bookObject.has("availability") || !bookObject.getString("availability").equals("Borrowed")) {
-                    System.out.println("   ❌ Skipping (Not Borrowed)");
-                    continue; // Skip books that aren't borrowed
-                }
-    
-                Object[] bookData = new Object[5];
-                bookData[0] = bookObject.getString("title");
-                bookData[1] = bookObject.getString("author");
-                bookData[2] = bookObject.getString("genre");
-                bookData[3] = bookObject.getString("borrowed_at");
-                bookData[4] = bookObject.getString("return_by");
-    
-                filteredBooks.add(bookData);
-            }
-    
-            return filteredBooks.toArray(new Object[0][5]);
-    
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new Object[0][5];
-        }
-    }
-    
-    
-    
 }
