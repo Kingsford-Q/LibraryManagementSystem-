@@ -390,7 +390,7 @@ public class AdminDashboard extends JFrame {
         bookData[i][0] = book.getString("title");
         bookData[i][1] = book.getString("author");
         bookData[i][2] = book.getString("genre");
-        bookData[i][3] = book.getBoolean("available") ? "Available" : "Not Available";
+        bookData[i][3] = book.getBoolean("available") ? "Available" : "Borrowed";
         bookData[i][4] = "Edit | Delete"; // Placeholder for buttons
     }
 
